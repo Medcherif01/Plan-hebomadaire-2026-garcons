@@ -599,7 +599,8 @@
                 }, 500);
             }
             
-            // Initialiser les notifications push
+            // DÉSACTIVÉ: Initialiser les notifications push
+            /*
             if (typeof window.NotificationManager !== 'undefined') {
                 console.log('🔔 Initialisation des notifications push...');
                 setTimeout(() => {
@@ -614,6 +615,7 @@
 //                     window.NotificationManager.createToggleButton(loggedInUser, userActionsContainer);
 //                 }
             }
+            */
         }
         
         async function handleLogin() {
