@@ -1008,3 +1008,31 @@ td.editable.arabic-content {
     padding: 30px;
     font-style: italic;
 }
+
+/* ========================================
+   Bouton Sauvegarde Coloré (Version 2.0)
+   ======================================== */
+
+.save-row-button {
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    margin-right: 5px;
+}
+
+.save-row-button.unsaved {
+    color: #007bff; /* Bleu = Modifié/Non sauvegardé */
+}
+
+.save-row-button.saved {
+    color: #28a745; /* Vert = Sauvegardé */
+}
+
+.save-row-button:hover {
+    transform: scale(1.2);
+    filter: brightness(1.2);
+}
+
+.save-row-button:active {
+    transform: scale(1.0);
+}

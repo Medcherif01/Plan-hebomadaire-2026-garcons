@@ -432,18 +432,27 @@
                 displayAlert("Veuillez d'abord sélectionner une semaine.", true);
                 return;
             }
-            if (!filteredAndSortedData || filteredAndSortedData.length === 0) {
-                displayAlert("Aucune donnée à afficher. Utilisez les filtres pour afficher des données.", true);
+            
+            // Récupérer tous les robots bleus (non générés)
+            const allRobots = document.querySelectorAll('.ai-gen-button:not(.generated)');
+            
+            if (allRobots.length === 0) {
+                displayAlert("✅ Aucun plan à générer. Tous les plans sont déjà générés.", false);
                 return;
             }
             
-            const confirmation = confirm(`Générer ${filteredAndSortedData.length} plan(s) de leçon IA pour les leçons affichées ?\n\nSemaine: ${currentWeek}\nTemps estimé: ~${filteredAndSortedData.length * 5} secondes\n\nUn fichier ZIP sera téléchargé automatiquement.`);
+            const confirmation = confirm(
+                `Générer ${allRobots.length} plan(s) de leçon IA automatiquement?\n\n` +
+                `Temps estimé: ~${allRobots.length * 20} secondes\n\n` +
+                `Les fichiers seront téléchargés un par un.`
+            );
+            
             if (!confirmation) {
                 return;
             }
             
-            console.log(`Génération de ${filteredAndSortedData.length} plans de leçon IA pour la semaine ${currentWeek}`);
-            displayAlert(`🤖 Génération de ${filteredAndSortedData.length} plans de leçon IA en cours... Veuillez patienter.`, false);
+            console.log(`🤖 Début génération automatique de ${allRobots.length} plans`);
+            displayAlert(`🤖 Génération automatique de ${allRobots.length} plans en cours...`, false);
             
             const btn = document.getElementById('generateAllDisplayedPlansBtn');
             const originalHTML = btn ? btn.innerHTML : '';
@@ -452,64 +461,44 @@
                 btn.disabled = true;
             }
             
-            showProgressBar();
-            updateProgressBar(10);
+            let successCount = 0;
+            let errorCount = 0;
             
-            try {
-                const response = await fetch('/api/generate-multiple-ai-lesson-plans', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        week: currentWeek,
-                        rowsData: filteredAndSortedData
-                    })
-                });
+            for (let i = 0; i < allRobots.length; i++) {
+                const robot = allRobots[i];
                 
-                updateProgressBar(80);
+                // Afficher la progression
+                const progressMsg = `[${i + 1}/${allRobots.length}] Génération en cours...`;
+                console.log(progressMsg);
+                displayAlert(progressMsg, false);
                 
-                if (response.ok) {
-                    const blob = await response.blob();
-                    const contentDisposition = response.headers.get('content-disposition');
-                    let filename = `Plans_Lecon_IA_S${currentWeek}_${filteredAndSortedData.length}_fichiers.zip`;
-                    
-                    if (contentDisposition) {
-                        const filenameMatch = contentDisposition.match(/filename="?(.+?)"?(;|$)/i);
-                        if (filenameMatch && filenameMatch[1]) {
-                            filename = filenameMatch[1];
-                        }
-                    }
-                    
-                    // Télécharger le ZIP automatiquement
-                    if (typeof saveAs === 'function') {
-                        saveAs(blob, filename);
-                    } else {
-                        const link = document.createElement('a');
-                        link.href = window.URL.createObjectURL(blob);
-                        link.download = filename;
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                        window.URL.revokeObjectURL(link.href);
-                    }
-                    
-                    updateProgressBar(100);
-                    displayAlert(`✅ ${filteredAndSortedData.length} plans de leçon IA générés avec succès!\n\nFichier: ${filename}\n\nOuvrez le ZIP pour voir tous vos plans de leçon Word.`, false);
+                // Cliquer sur le robot (déclenche la génération)
+                robot.click();
+                
+                // Attendre 3 secondes avant la prochaine génération (éviter rate limit)
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                
+                // Vérifier si le robot est devenu vert (plan généré avec succès)
+                if (robot.classList.contains('generated')) {
+                    successCount++;
                 } else {
-                    const errorResult = await response.json().catch(() => ({ message: "Erreur inconnue du serveur." }));
-                    throw new Error(errorResult.message || `Erreur serveur ${response.status}`);
-                }
-            } catch (error) {
-                console.error("Erreur lors de la génération des plans de leçon IA:", error);
-                displayAlert(`❌ Erreur lors de la génération: ${error.message}`, true);
-                updateProgressBar(0);
-            } finally {
-                hideProgressBar();
-                if (btn) {
-                    btn.innerHTML = originalHTML;
-                    btn.disabled = false;
-                    updateActionButtonsState(filteredAndSortedData.length > 0);
+                    errorCount++;
                 }
             }
+            
+            // Afficher le résultat final
+            const finalMsg = `✅ ${successCount} plan(s) généré(s) avec succès\n❌ ${errorCount} erreur(s)`;
+            console.log(finalMsg);
+            displayAlert(finalMsg, errorCount > 0);
+            
+            // Restaurer le bouton
+            if (btn) {
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+            }
+            
+            // Recharger les données pour mettre à jour l'interface
+            await fetchPlanData(currentWeek);
         }
         
         async function generateWeeklyLessonPlans() { if (!currentWeek) { displayAlert("please_select_week", true); return; } if (!filteredAndSortedData || filteredAndSortedData.length === 0) { displayAlert("no_data_to_display_filters", true); return; } const confirmation = confirm(t("Voulez-vous générer les plans de leçons pour toutes les données affichées de la semaine " + currentWeek + " ?")); if (!confirmation) return; console.log("Generating Weekly Lesson Plans for week:", currentWeek); displayAlert("generating_weekly_lessons", false); setButtonLoading("generateWeeklyLessonsBtn", true, "fas fa-robot"); showProgressBar(); updateProgressBar(10); try { const response = await fetch("/api/generate-weekly-lesson-plans", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ week: currentWeek, data: filteredAndSortedData }) }); updateProgressBar(80); if (response.ok) { const blob = await response.blob(); const contentDisposition = response.headers.get("content-disposition"); let filename = `plans_lecons_semaine_${currentWeek}.zip`; if (contentDisposition) { const filenameMatch = contentDisposition.match(/filename="?(.+?)"?(;|$)/i); if (filenameMatch && filenameMatch[1]) { filename = filenameMatch[1]; } } saveAs(blob, filename); updateProgressBar(100); displayAlert("weekly_lessons_generated", false); } else { const errorResult = await response.json().catch(() => ({ message: "Erreur inconnue du serveur." })); throw new Error(errorResult.message || `Erreur serveur ${response.status}`); } } catch (error) { console.error("Error generating weekly lesson plans:", error); displayAlert("error_generating_ai_lesson_plan", true, { error: error.message }); updateProgressBar(0); } finally { hideProgressBar(); setButtonLoading("generateWeeklyLessonsBtn", false, "fas fa-robot"); } }
