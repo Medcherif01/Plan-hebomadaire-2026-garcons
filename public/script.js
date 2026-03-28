@@ -278,10 +278,20 @@
                 });
                 const actTd = document.createElement('td');
                 actTd.classList.add('actions-column');
+                // 💾 BOUTON SAUVEGARDE VISIBLE (change de couleur si enregistré)
                 const saveBtn = document.createElement('button');
-                saveBtn.innerHTML = '<i class="fas fa-check"></i>';
-                saveBtn.title = t('save_row_title');
+                saveBtn.innerHTML = '<i class="fas fa-save"></i>';
                 saveBtn.classList.add('save-row-button');
+                
+                // Couleur selon l'état d'enregistrement
+                if (rowObj && updK && rowObj[updK]) {
+                    saveBtn.classList.add('saved'); // Vert si déjà enregistré
+                    saveBtn.title = '✅ Ligne enregistrée - Cliquer pour sauvegarder les modifications';
+                } else {
+                    saveBtn.classList.add('unsaved'); // Bleu si pas encore enregistré
+                    saveBtn.title = '💾 Cliquer pour enregistrer la ligne';
+                }
+                
                 saveBtn.onclick = () => saveRow(rowObj, tr);
                 actTd.appendChild(saveBtn);
                 const indicatorSpan = document.createElement('span');
@@ -301,16 +311,17 @@
                     aiGenBtn.innerHTML = '<i class="fas fa-save"></i>';
                     aiGenBtn.title = 'Générer Plan de Leçon de cette séance';
                     aiGenBtn.classList.add('ai-lesson-plan-button');
-                    aiGenBtn.style.marginLeft = '5px';
-                    console.log('🔵 Bouton disquette créé:', aiGenBtn);
+                    aiGenBtn.style.marginLeft = '8px';
                     
-                    // Changer la couleur si un plan de leçon existe déjà (vert au lieu de bleu)
+                    // Changer la couleur : VERT si déjà généré, BLEU sinon
                     if (rowObj && rowObj.lessonPlanId) {
-                        console.log(`🟢 Bouton VERT pour lessonPlanId: ${rowObj.lessonPlanId}`);
-                        aiGenBtn.classList.add('lesson-plan-exists');
-                        aiGenBtn.title = 'Plan de Leçon déjà généré - Régénérer';
+                        console.log(`🟢 Robot VERT pour lessonPlanId: ${rowObj.lessonPlanId}`);
+                        aiGenBtn.classList.add('lesson-plan-exists'); // Style vert
+                        aiGenBtn.title = '✅ Plan généré - Cliquer pour régénérer et télécharger';
                     } else {
-                        console.log(`🔵 Bouton BLEU (pas de lessonPlanId)`);
+                        console.log(`🔵 Robot BLEU (pas de lessonPlanId)`);
+                        aiGenBtn.classList.add('lesson-plan-new'); // Style bleu
+                        aiGenBtn.title = '🤖 Générer Plan de Leçon IA';
                     }
                     
                     aiGenBtn.onclick = () => generateAILessonPlan(rowObj, tr);
@@ -426,84 +437,107 @@
         
 
 
-        // Fonction pour générer tous les plans de leçon des lignes affichées dans le tableau
+        // 🤖 CLIQUE AUTOMATIQUE SUR TOUS LES ROBOTS (comme si vous cliquiez manuellement)
         async function generateAllDisplayedLessonPlans() {
             if (!currentWeek) {
                 displayAlert("Veuillez d'abord sélectionner une semaine.", true);
                 return;
             }
             
-            // Récupérer tous les robots bleus (non générés)
-            const allRobots = document.querySelectorAll('.ai-gen-button:not(.generated)');
+            // Trouver tous les boutons robots visibles dans le tableau
+            const robotButtons = document.querySelectorAll('#planTable tbody .ai-lesson-plan-button');
             
-            if (allRobots.length === 0) {
-                displayAlert("✅ Aucun plan à générer. Tous les plans sont déjà générés.", false);
+            if (robotButtons.length === 0) {
+                displayAlert("Aucun robot trouvé. Assurez-vous que des données sont affichées.", true);
                 return;
             }
             
-            const confirmation = confirm(
-                `Générer ${allRobots.length} plan(s) de leçon IA automatiquement?\n\n` +
-                `Temps estimé: ~${allRobots.length * 20} secondes\n\n` +
-                `Les fichiers seront téléchargés un par un.`
-            );
-            
+            const confirmation = confirm(`Cliquer automatiquement sur ${robotButtons.length} robot(s) ?\n\nSemaine: ${currentWeek}\nTemps estimé: ~${robotButtons.length * 20} secondes\n\n⚠️ Chaque plan se téléchargera automatiquement.\nLes robots changeront de BLEU à VERT.`);
             if (!confirmation) {
                 return;
             }
             
-            console.log(`🤖 Début génération automatique de ${allRobots.length} plans`);
-            displayAlert(`🤖 Génération automatique de ${allRobots.length} plans en cours...`, false);
+            console.log(`🤖 Clic automatique sur ${robotButtons.length} robots...`);
             
             const btn = document.getElementById('generateAllDisplayedPlansBtn');
             const originalHTML = btn ? btn.innerHTML : '';
             if (btn) {
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span class="btn-text">Génération...</span>';
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span class="btn-text">Clics en cours...</span>';
                 btn.disabled = true;
             }
             
-            let successCount = 0;
-            let errorCount = 0;
+            showProgressBar();
             
-            for (let i = 0; i < allRobots.length; i++) {
-                const robot = allRobots[i];
+            // Cliquer sur chaque robot, un par un
+            for (let i = 0; i < robotButtons.length; i++) {
+                const robot = robotButtons[i];
                 
-                // Afficher la progression
-                const progressMsg = `[${i + 1}/${allRobots.length}] Génération en cours...`;
-                console.log(progressMsg);
-                displayAlert(progressMsg, false);
+                displayAlert(`🤖 [${i+1}/${robotButtons.length}] Clic sur le robot...`, false);
+                updateProgressBar(10 + (i * 85 / robotButtons.length));
                 
-                // Cliquer sur le robot (déclenche la génération)
+                console.log(`🖱️ Clic sur robot ${i+1}/${robotButtons.length}`);
+                
+                // Simuler un clic sur le robot (déclenche generateAILessonPlan)
                 robot.click();
                 
-                // Attendre 3 secondes avant la prochaine génération (éviter rate limit)
-                await new Promise(resolve => setTimeout(resolve, 3000));
-                
-                // Vérifier si le robot est devenu vert (plan généré avec succès)
-                if (robot.classList.contains('generated')) {
-                    successCount++;
-                } else {
-                    errorCount++;
+                // Attendre 5 secondes avant de cliquer sur le prochain
+                // (le temps que le plan se génère et se télécharge)
+                if (i < robotButtons.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 5000));
                 }
             }
             
-            // Afficher le résultat final
-            const finalMsg = `✅ ${successCount} plan(s) généré(s) avec succès\n❌ ${errorCount} erreur(s)`;
-            console.log(finalMsg);
-            displayAlert(finalMsg, errorCount > 0);
+            updateProgressBar(100);
+            displayAlert(`✅ ${robotButtons.length} robot(s) cliqué(s) !\n\n📥 Les fichiers ont été téléchargés automatiquement.`, false);
             
-            // Restaurer le bouton
+            hideProgressBar();
             if (btn) {
                 btn.innerHTML = originalHTML;
                 btn.disabled = false;
             }
-            
-            // Recharger les données pour mettre à jour l'interface
-            await fetchPlanData(currentWeek);
         }
         
         async function generateWeeklyLessonPlans() { if (!currentWeek) { displayAlert("please_select_week", true); return; } if (!filteredAndSortedData || filteredAndSortedData.length === 0) { displayAlert("no_data_to_display_filters", true); return; } const confirmation = confirm(t("Voulez-vous générer les plans de leçons pour toutes les données affichées de la semaine " + currentWeek + " ?")); if (!confirmation) return; console.log("Generating Weekly Lesson Plans for week:", currentWeek); displayAlert("generating_weekly_lessons", false); setButtonLoading("generateWeeklyLessonsBtn", true, "fas fa-robot"); showProgressBar(); updateProgressBar(10); try { const response = await fetch("/api/generate-weekly-lesson-plans", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ week: currentWeek, data: filteredAndSortedData }) }); updateProgressBar(80); if (response.ok) { const blob = await response.blob(); const contentDisposition = response.headers.get("content-disposition"); let filename = `plans_lecons_semaine_${currentWeek}.zip`; if (contentDisposition) { const filenameMatch = contentDisposition.match(/filename="?(.+?)"?(;|$)/i); if (filenameMatch && filenameMatch[1]) { filename = filenameMatch[1]; } } saveAs(blob, filename); updateProgressBar(100); displayAlert("weekly_lessons_generated", false); } else { const errorResult = await response.json().catch(() => ({ message: "Erreur inconnue du serveur." })); throw new Error(errorResult.message || `Erreur serveur ${response.status}`); } } catch (error) { console.error("Error generating weekly lesson plans:", error); displayAlert("error_generating_ai_lesson_plan", true, { error: error.message }); updateProgressBar(0); } finally { hideProgressBar(); setButtonLoading("generateWeeklyLessonsBtn", false, "fas fa-robot"); } }
         function updateActionButtonsState(isEnabled) { document.getElementById('generateWordBtn').disabled = !isEnabled; document.getElementById('generateExcelBtn').disabled = !isEnabled; const saveAllBtn = document.getElementById('saveAllDisplayedBtn'); if (saveAllBtn) { saveAllBtn.disabled = !isEnabled || !filteredAndSortedData || filteredAndSortedData.length === 0; } const generateAllDisplayedPlansBtn = document.getElementById('generateAllDisplayedPlansBtn'); if (generateAllDisplayedPlansBtn) { generateAllDisplayedPlansBtn.disabled = !isEnabled || !filteredAndSortedData || filteredAndSortedData.length === 0; generateAllDisplayedPlansBtn.style.display = ''; } }
-        async function saveRow(rowData, tableRowElement) { if(!rowData||typeof rowData!=='object'){displayAlert('invalid_row',true); return;} console.log("saveRow:",JSON.stringify(rowData).substring(0,100)+'...'); displayAlert(''); const btn=tableRowElement?.querySelector('.save-row-button'); const indicator=tableRowElement?.querySelector('.save-indicator'); const origBtnIcon = btn ? btn.querySelector('i')?.className || 'fas fa-check' : 'fas fa-check'; if(indicator) indicator.style.display='none'; if(btn){btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>'; btn.disabled=true;} try{ if(!currentWeek){throw new Error(t('please_select_week'));} const response=await fetch('/api/save-row',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week:currentWeek,data:rowData})}); const result=await response.json(); if(!response.ok){throw new Error(result.message||`Erreur ${response.status}`);} if(tableRowElement){tableRowElement.classList.remove('modified');} if(indicator) indicator.style.display='inline-block'; if(result.updatedData?.updatedAt&&tableRowElement){ const updK=findHKey('updatedAt'); if(updK){ rowData[updK]=result.updatedData.updatedAt; const updCell=tableRowElement.querySelector('.updated-at-column'); if(updCell){updCell.textContent=formatUpdatedAt(result.updatedData.updatedAt);} } } } catch(e){ console.error('Erreur saveRow:',e); displayAlert('error_saving_row', true, { error: e.message }); if(indicator) indicator.style.display='none'; } finally{if(btn){btn.innerHTML=`<i class="${origBtnIcon}"></i>`; btn.disabled=false;} checkAndDisplayIncompleteTeachers();} }
+        async function saveRow(rowData, tableRowElement) {
+            if(!rowData||typeof rowData!=='object'){displayAlert('invalid_row',true); return;}
+            console.log("saveRow:",JSON.stringify(rowData).substring(0,100)+'...');
+            displayAlert('');
+            const btn=tableRowElement?.querySelector('.save-row-button');
+            const indicator=tableRowElement?.querySelector('.save-indicator');
+            const origBtnIcon = btn ? btn.querySelector('i')?.className || 'fas fa-save' : 'fas fa-save';
+            if(indicator) indicator.style.display='none';
+            if(btn){btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>'; btn.disabled=true;}
+            try{
+                if(!currentWeek){throw new Error(t('please_select_week'));}
+                const response=await fetch('/api/save-row',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week:currentWeek,data:rowData})});
+                const result=await response.json();
+                if(!response.ok){throw new Error(result.message||`Erreur ${response.status}`);}
+                if(tableRowElement){tableRowElement.classList.remove('modified');}
+                if(indicator) indicator.style.display='inline-block';
+                if(result.updatedData?.updatedAt&&tableRowElement){
+                    const updK=findHKey('updatedAt');
+                    if(updK){
+                        rowData[updK]=result.updatedData.updatedAt;
+                        const updCell=tableRowElement.querySelector('.updated-at-column');
+                        if(updCell){updCell.textContent=formatUpdatedAt(result.updatedData.updatedAt);}
+                    }
+                }
+                // 🆕 CHANGER LA COULEUR DU BOUTON : BLEU → VERT
+                if(btn){
+                    btn.classList.remove('unsaved');
+                    btn.classList.add('saved');
+                    btn.title = '✅ Ligne enregistrée - Cliquer pour sauvegarder les modifications';
+                }
+            } catch(e){
+                console.error('Erreur saveRow:',e);
+                displayAlert('error_saving_row', true, { error: e.message });
+                if(indicator) indicator.style.display='none';
+            } finally{
+                if(btn){btn.innerHTML=`<i class="${origBtnIcon}"></i>`; btn.disabled=false;}
+                checkAndDisplayIncompleteTeachers();
+            }
+        }
         async function saveAllDisplayedRows() { if (!filteredAndSortedData || filteredAndSortedData.length === 0) { displayAlert('no_rows_to_save', true); return; } if (!currentWeek) { displayAlert("please_select_week", true); return; } const totalRows = filteredAndSortedData.length; const confirmation = confirm(t('confirm_save_all', { count: totalRows, week: currentWeek })); if (!confirmation) { displayAlert('save_all_cancelled', false); return; } displayAlert('saving_all_displayed', false, { count: totalRows }); setButtonLoading('saveAllDisplayedBtn', true, 'fas fa-save'); showProgressBar(); updateProgressBar(0); let successCount = 0; let errorCount = 0; const tableBody = document.querySelector('#planTable tbody'); for (let i = 0; i < totalRows; i++) { const rowData = filteredAndSortedData[i]; const rowIndex = i; updateProgressBar(Math.round(((i + 1) / totalRows) * 95)); try { const response = await fetch('/api/save-row', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ week: currentWeek, data: rowData }) }); const result = await response.json(); if (!response.ok) { throw new Error(result.message || `Erreur ${response.status} L${rowIndex + 1}`); } successCount++; const tr = tableBody?.querySelector(`tr[data-row-index="${rowIndex}"]`); if (tr) { tr.classList.remove('modified'); const indicator = tr.querySelector('.save-indicator'); if (indicator) indicator.style.display = 'inline-block'; if (result.updatedData?.updatedAt) { const updK = findHKey('updatedAt'); if (updK) { rowData[updK] = result.updatedData.updatedAt; const updCell = tr.querySelector('.updated-at-column'); if (updCell) updCell.textContent = formatUpdatedAt(result.updatedData.updatedAt); } } } } catch (error) { console.error(`Err L${rowIndex + 1}:`, error); errorCount++; const tr = tableBody?.querySelector(`tr[data-row-index="${rowIndex}"]`); if(tr) { tr.style.backgroundColor = '#f8d7da'; tr.classList.add('modified'); const indicator = tr.querySelector('.save-indicator'); if(indicator) indicator.style.display = 'none'; } } } updateProgressBar(100); hideProgressBar(); setButtonLoading('saveAllDisplayedBtn', false, 'fas fa-save'); if (errorCount === 0) { displayAlert('save_all_success', false, { count: successCount }); } else { displayAlert('save_all_partial', true, { success: successCount, error: errorCount }); } checkAndDisplayIncompleteTeachers(); }
         async function generateWordByClasse() { const dataGen = filteredAndSortedData; if(!dataGen || dataGen.length === 0){ displayAlert("no_data_to_display_filters", true); return; } if(!currentWeek){displayAlert("please_select_week",true); return;} setButtonLoading('generateWordBtn', true, 'fas fa-file-word'); const dataCls = {}; const clsK = findHKey('Classe'); if (!clsK) { displayAlert("error_config_columns", true); setButtonLoading('generateWordBtn', false, 'fas fa-file-word'); return; } dataGen.forEach(i => { if (!i || !i[clsK]) return; const cl = i[clsK]; if (!dataCls[cl]) { dataCls[cl] = []; } dataCls[cl].push(i); }); const clsGen = Object.keys(dataCls); if (clsGen.length === 0) { displayAlert("no_data", true); setButtonLoading('generateWordBtn', false, 'fas fa-file-word'); return; } displayAlert('generating_word', false, { count: clsGen.length }); showProgressBar(); updateProgressBar(0); let ok = 0, err = 0; const total = clsGen.length; for (let i = 0; i < total; i++) { const cl = clsGen[i]; const clData = dataCls[cl]; const clNote = weeklyClassNotes[cl] || ""; updateProgressBar(Math.round(((i + 1) / total) * 100)); try { const payload = { week: currentWeek, classe: cl, data: clData, notes: clNote }; const r = await fetch('/api/generate-word', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); if (r.ok) { const blob = await r.blob(); const cd = r.headers.get('content-disposition'); let filename = `plan_s${currentWeek}_${cl.replace(/[^a-z0-9]/gi, '_')}.docx`; if (cd) { const m = cd.match(/filename="?(.+?)"?(;|$)/i); if (m && m[1]) filename = m[1]; } if (typeof saveAs === 'function') { try { saveAs(blob, filename); ok++; } catch (e) { err++; console.error(`SaveAs ${cl}:`, e); displayAlert(t('error', {error: `Err sauvegarde ${cl}: ${e.message}`}), true); } } else { err++; console.error("saveAs non défini!"); displayAlert(t('error', {error: "saveAs non trouvé."}), true); break; } } else { const d = await r.json().catch(() => ({ message: `Erreur ${r.status}` })); console.error(`Err Word ${cl}:`, r.status, d); if (d.message && d.message.includes('Dates non trouvées côté serveur')) { displayAlert('no_word_dates', true, {week: currentWeek}); err++; } else { displayAlert('error_generating_word_for', true, {classe: cl, error: (d.message || 'Inconnue')}); err++; } } } catch (e) { err++; console.error(`Err Fetch Word ${cl}:`, e); displayAlert('error', true, { error: `Erreur réseau Word ${cl}: ${e.message}` }); } } hideProgressBar(); setButtonLoading('generateWordBtn', false, 'fas fa-file-word'); if (ok > 0 && err === 0) { displayAlert('generating_word_success', false, { count: ok }); } else if (ok > 0 && err > 0) { displayAlert('generating_word_partial', true, { ok: ok, err: err }); } else if (ok === 0 && err > 0) { if (err > 1) { displayAlert('generating_word_failed', true, {err: err}); } } else if (ok === 0 && err === 0) { displayAlert("no_data", true); } }
         async function generateExcelWorkbook() { if (!currentWeek) { displayAlert("please_select_week", true); return; } setButtonLoading('generateExcelBtn',true,'fas fa-file-excel'); displayAlert('generating_excel', false, { week: currentWeek }); showProgressBar(); updateProgressBar(10); let err=0; try{ const payload = { week: currentWeek }; const r = await fetch('/api/generate-excel-workbook', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); updateProgressBar(70); if(r.ok){const blob=await r.blob(); const cd=r.headers.get('content-disposition'); let filename=`plan_s${currentWeek}_complet.xlsx`; if(cd){const m=cd.match(/filename="?(.+?)"?(;|$)/i); if(m&&m[1]) filename=m[1];} if(typeof saveAs==='function'){try{saveAs(blob,filename); updateProgressBar(100); displayAlert('generating_excel_success', false, { filename: filename });} catch(e){err++; console.error(`SaveAs Excel:`,e); displayAlert(t('error', { error: `Err sauvegarde Excel: ${e.message}` }), true); updateProgressBar(0);}} else {err++; console.error("saveAs non défini!"); displayAlert(t('error', { error: "saveAs non trouvé." }), true); updateProgressBar(0);}} else { const d=await r.json().catch(()=>({message:`Err ${r.status}`})); console.error(`Err Excel Wb:`,r.status,d); displayAlert('error_generating_excel', true, { error: (d.message || 'Inconnue') }); updateProgressBar(0); err++;} } catch(e){err++; console.error(`Err Fetch Excel Wb:`,e); displayAlert('error', { error: `Err réseau Excel: ${e.message}` }, true); updateProgressBar(0);} finally{hideProgressBar(); setButtonLoading('generateExcelBtn',false,'fas fa-file-excel');} }
