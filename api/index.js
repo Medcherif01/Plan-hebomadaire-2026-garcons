@@ -88,7 +88,7 @@ app.get('/diagnostic', (req, res) => {
   res.sendFile(path.join(publicPath, 'diagnostic.html'));
 });
 // --------------------------------------
-const MONGO_URL = process.env.MONGO_URL;
+const MONGO_URL = process.env.MONGO_URL || process.env.MONGODB_URI || process.env.MONGODB_URL;
 const WORD_TEMPLATE_URL = process.env.WORD_TEMPLATE_URL;
 const LESSON_TEMPLATE_URL = process.env.LESSON_TEMPLATE_URL;
 
