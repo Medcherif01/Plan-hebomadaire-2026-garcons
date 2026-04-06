@@ -178,13 +178,24 @@ const validUsers = {
 };
 
 let cachedDb = null;
+let cachedClient = null;
 async function connectToDatabase() {
   if (cachedDb) return cachedDb;
-  const client = new MongoClient(MONGO_URL);
-  await client.connect();
-  const db = client.db();
-  cachedDb = db;
-  return db;
+  if (!MONGO_URL || typeof MONGO_URL !== 'string' || MONGO_URL.trim() === '') {
+    throw new Error('MONGO_URL non configurée. Veuillez définir la variable d\'environnement MONGO_URL dans Vercel.');
+  }
+  try {
+    const client = new MongoClient(MONGO_URL);
+    await client.connect();
+    const db = client.db();
+    cachedDb = db;
+    cachedClient = client;
+    return db;
+  } catch (err) {
+    cachedDb = null;
+    cachedClient = null;
+    throw err;
+  }
 }
 
 function formatDateFrenchNode(date) {
